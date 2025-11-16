@@ -6,7 +6,7 @@ from db import pool
 GOLD = 0xC6A667
 
 
-class AcceptAdoption(discord.ui.View):
+class AdoptionApprovalView(discord.ui.View):
     def __init__(self, parent_id, child_id, bot):
         super().__init__(timeout=60)
         self.parent_id = parent_id
@@ -16,7 +16,7 @@ class AcceptAdoption(discord.ui.View):
     @discord.ui.button(label="Accept Adoption", style=discord.ButtonStyle.green)
     async def accept(self, interaction: discord.Interaction, button: discord.ui.Button):
 
-        # Create parent-child link
+        # Add second parent
         async with pool.acquire() as con:
             await con.execute("""
                 INSERT INTO children(parent, child)
@@ -24,16 +24,18 @@ class AcceptAdoption(discord.ui.View):
                 ON CONFLICT DO NOTHING;
             """, self.parent_id, self.child_id)
 
-        parent = await self.bot.fetch_user(self.parent_id)
-        child = interaction.user
+        parent_user = await self.bot.fetch_user(self.parent_id)
+        child_user = interaction.user
 
-        # DM parent
+        # Notify parent
         try:
-            await parent.send(f"👶 **{child.display_name}** has **accepted** your adoption request! ❤️")
+            await parent_user.send(
+                f"🎉 **{child_user.display_name}** has **accepted** your adoption request!"
+            )
         except:
             pass
 
-        # Edit message
+        # Update child's DM
         await interaction.response.edit_message(
             content="You accepted the adoption request! 🎉",
             view=None
@@ -41,15 +43,19 @@ class AcceptAdoption(discord.ui.View):
 
     @discord.ui.button(label="Decline", style=discord.ButtonStyle.red)
     async def decline(self, interaction: discord.Interaction, button: discord.ui.Button):
-        parent = await self.bot.fetch_user(self.parent_id)
-        child = interaction.user
 
-        # DM parent
+        parent_user = await self.bot.fetch_user(self.parent_id)
+        child_user = interaction.user
+
+        # Notify parent
         try:
-            await parent.send(f"❌ **{child.display_name}** has **declined** your adoption request.")
+            await parent_user.send(
+                f"❌ **{child_user.display_name}** has **declined** your adoption request."
+            )
         except:
             pass
 
+        # Update message
         await interaction.response.edit_message(
             content="You declined the adoption request.",
             view=None
@@ -60,16 +66,17 @@ class Adoption(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="adopt", description="Request to adopt a user.")
+    @app_commands.command(name="adopt", description="Ask to adopt another user.")
     async def adopt(self, interaction: discord.Interaction, user: discord.User):
 
         # Cannot adopt yourself
         if user.id == interaction.user.id:
             return await interaction.response.send_message(
-                "You cannot adopt yourself.", ephemeral=True
+                "You cannot adopt yourself.",
+                ephemeral=True
             )
 
-        # Check if the child already has parents
+        # Check parent count
         async with pool.acquire() as con:
             parent_rows = await con.fetch(
                 "SELECT parent FROM children WHERE child=$1",
@@ -78,12 +85,18 @@ class Adoption(commands.Cog):
 
         if len(parent_rows) >= 2:
             return await interaction.response.send_message(
-                "This user already has 2 parents.", ephemeral=True
+                "❌ This user already has 2 parents.",
+                ephemeral=True
             )
 
-        # DM the child a confirmation
-        view = AcceptAdoption(interaction.user.id, user.id, self.bot)
+        # Prepare DM approval
+        view = AdoptionApprovalView(
+            parent_id=interaction.user.id,
+            child_id=user.id,
+            bot=self.bot
+        )
 
+        # Try sending DM to child
         try:
             await user.send(
                 f"👶 **{interaction.user.display_name}** wants to adopt you!",
@@ -91,12 +104,14 @@ class Adoption(commands.Cog):
             )
         except:
             return await interaction.response.send_message(
-                "User has closed DMs. Adoption request failed.",
+                "❌ This user has closed DMs. Adoption request failed.",
                 ephemeral=True
             )
 
+        # Confirm request sent
         await interaction.response.send_message(
-            f"Adoption request sent to {user.display_name}! 📩", ephemeral=True
+            f"📩 Adoption request sent to **{user.display_name}**!",
+            ephemeral=True
         )
 
 
