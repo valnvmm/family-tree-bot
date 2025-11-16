@@ -3,7 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 from db import pool
 
-pending_requests = {}  # user_id → requester_id
+pending_requests = {}  # target_user_id → requester_user_id
 
 GOLD = 0xC6A667
 
@@ -16,6 +16,7 @@ class Marriage(commands.Cog):
         if user.id == interaction.user.id:
             return await interaction.response.send_message("You cannot marry yourself.", ephemeral=True)
 
+        # Database checks
         async with pool.acquire() as con:
             partner = await con.fetchval("SELECT partner FROM users WHERE user_id=$1", interaction.user.id)
             user_partner = await con.fetchval("SELECT partner FROM users WHERE user_id=$1", user.id)
@@ -26,6 +27,13 @@ class Marriage(commands.Cog):
         if user_partner:
             return await interaction.response.send_message("That user is already married.", ephemeral=True)
 
+        # Check pending requests
+        if user.id in pending_requests:
+            return await interaction.response.send_message(
+                f"{user.mention} already has a pending marriage request.",
+                ephemeral=True
+            )
+
         pending_requests[user.id] = interaction.user.id
 
         embed = discord.Embed(
@@ -33,8 +41,13 @@ class Marriage(commands.Cog):
             description=f"{interaction.user.mention} has sent a marriage request to {user.mention}.",
             color=GOLD
         )
-
         await interaction.response.send_message(embed=embed)
+
+        # Optional: Notify the target user directly
+        try:
+            await user.send(f"❤️ You received a marriage request from {interaction.user.mention}! Use `/acceptmarriage` to accept.")
+        except:
+            pass
 
     @app_commands.command(name="acceptmarriage", description="Accept the last received marriage request.")
     async def acceptmarriage(self, interaction: discord.Interaction):
