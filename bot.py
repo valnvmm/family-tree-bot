@@ -1,28 +1,20 @@
-import os
 import discord
 from discord.ext import commands
-from discord import app_commands
+from config import Config
+from db import init_db
 
 intents = discord.Intents.default()
-bot = commands.Bot(command_prefix="!", intents=intents)
+bot = commands.Bot(intents=intents, command_prefix="!", help_command=None)
 tree = bot.tree
 
 @bot.event
 async def on_ready():
-    print(f"Bot is online as {bot.user}")
-    try:
-        synced = await tree.sync()
-        print(f"Synced {len(synced)} slash commands.")
-    except Exception as e:
-        print(f"Error syncing commands: {e}")
+    print(f"🚀 Bot online as {bot.user}")
+    synced = await tree.sync()
+    print(f"🔗 Synced {len(synced)} commands.")
 
-@tree.command(name="check", description="Check if the bot is online.")
-async def check(interaction: discord.Interaction):
-    await interaction.response.send_message("I'm online.")
+@bot.event
+async def setup_hook():
+    await init_db()
 
-TOKEN = os.getenv("TOKEN")
-
-if not TOKEN:
-    print("ERROR: No TOKEN environment variable found!")
-else:
-    bot.run(TOKEN)
+bot.run(Config.TOKEN)
