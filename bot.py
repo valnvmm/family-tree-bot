@@ -20,7 +20,7 @@ async def on_ready():
 async def check(interaction: discord.Interaction):
     await interaction.response.send_message("I'm online.")
 
-TOKEN = os.getenv("1417955841352532049")
+TOKEN = os.getenv("TOKEN")
 
 if not TOKEN:
     print("ERROR: No TOKEN environment variable found!")
