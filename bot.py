@@ -13,15 +13,18 @@ tree = bot.tree
 
 @bot.event
 async def setup_hook():
-    print("🔧 Loading cogs...")
-    await bot.load_extension("cogs.family")
-
     print("🔧 Initializing database...")
     await init_db()
 
+    print("🔧 Loading cogs...")
+    await bot.load_extension("cogs.family")
+    await bot.load_extension("cogs.marriage")
+
     print("🔗 Syncing commands...")
     await bot.tree.sync()
-    print("✔️ Slash commands synced!")
+
+    print("✔️ Bot setup complete!")
+
 
 
 @bot.event
