@@ -19,6 +19,7 @@ async def setup_hook():
     print("🔧 Loading cogs...")
     await bot.load_extension("cogs.family")
     await bot.load_extension("cogs.marriage")
+    await bot.load_extension("cogs.adoption")   # <-- MISSING
 
     print("🔗 Syncing commands...")
     await bot.tree.sync()
