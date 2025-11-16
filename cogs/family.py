@@ -5,72 +5,98 @@ from db import pool
 
 GOLD = 0xC6A667
 
+
 class Family(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    async def get_name(self, user_id):
+    # ---------------------------------------------------------
+    # Helper: convert user ID → username, or placeholder
+    # ---------------------------------------------------------
+    async def resolve_name(self, user_id: int):
+        if not user_id:
+            return "Unknown"
+
         try:
             user = await self.bot.fetch_user(user_id)
             return user.display_name
         except:
-            return f"Unknown ({user_id})"
+            return f"<@{user_id}>"
 
-    def build_tree(self, parents, user_name, partner_name, children_names):
-        """
-        Bouwt een ASCII boomstructuur (Optie B)
-        """
-
-        def indent(lines, level=1):
-            prefix = " " * 4 * level
-            return "\n".join(prefix + line for line in lines.split("\n"))
-
-        left_parent = parents[0] or "Unknown"
-        right_parent = parents[1] or "Unknown"
-
-        # Parent block
-        parents_block = f"Parents\n├── {left_parent}\n└── {right_parent}"
-
-        # User & Partner
-        partner_block = (
-            f"{user_name} ──┐\n"
-            f"    ├── Partner: {partner_name}\n"
-        )
-
-        # Children block
-        if children_names:
-            child_lines = "\n".join([f"    └── Child: {c}" for c in children_names])
-        else:
-            child_lines = "    └── Child: None"
-
-        return f"```\n{parents_block}\n\n{partner_block}{child_lines}\n```"
-
+    # ---------------------------------------------------------
+    # /familytree command
+    # ---------------------------------------------------------
     @app_commands.command(name="familytree", description="Show a user's family tree.")
     async def familytree(self, interaction: discord.Interaction, user: discord.User = None):
-        user = user or interaction.user
+
+        target = user or interaction.user
 
         async with pool.acquire() as con:
-            parent_rows = await con.fetch("SELECT parent FROM children WHERE child=$1", user.id)
-            parents = [None, None]
-            for i, row in enumerate(parent_rows[:2]):
-                parents[i] = await self.get_name(row["parent"])
+            # Fetch parents + partner from users table
+            row = await con.fetchrow(
+                "SELECT parent1, parent2, partner FROM users WHERE user_id = $1",
+                target.id
+            )
 
-            partner_id = await con.fetchval("SELECT partner FROM users WHERE user_id=$1", user.id)
-            partner_name = await self.get_name(partner_id) if partner_id else "None"
+            if row:
+                parent1_id = row["parent1"]
+                parent2_id = row["parent2"]
+                partner_id = row["partner"]
+            else:
+                parent1_id = None
+                parent2_id = None
+                partner_id = None
 
-            children_rows = await con.fetch("SELECT child FROM children WHERE parent=$1", user.id)
-            children_names = [await self.get_name(r["child"]) for r in children_rows]
+            # Fetch children through the children table
+            child_rows = await con.fetch(
+                "SELECT child FROM children WHERE parent = $1",
+                target.id
+            )
 
-        user_name = await self.get_name(user.id)
-        tree_text = self.build_tree(parents, user_name, partner_name, children_names)
+        # Resolve names safely
+        parent1 = await self.resolve_name(parent1_id)
+        parent2 = await self.resolve_name(parent2_id)
+        partner = await self.resolve_name(partner_id) if partner_id else "None"
 
+        children = []
+        for row in child_rows:
+            children.append(await self.resolve_name(row["child"]))
+
+        # Format children list
+        children_text = ", ".join(children) if children else "None"
+
+        # Build embed
         embed = discord.Embed(
-            title="Family Tree",
-            description=tree_text,
+            title=f"Family Tree — {target.display_name}",
             color=GOLD
         )
 
+        embed.add_field(
+            name="👨‍👩‍👧 Parents",
+            value=f"{parent1}, {parent2}",
+            inline=False
+        )
+
+        embed.add_field(
+            name="🧍 User",
+            value=target.display_name,
+            inline=False
+        )
+
+        embed.add_field(
+            name="❤️ Partner",
+            value=partner,
+            inline=False
+        )
+
+        embed.add_field(
+            name="👶 Children",
+            value=children_text,
+            inline=False
+        )
+
         await interaction.response.send_message(embed=embed)
+
 
 async def setup(bot):
     await bot.add_cog(Family(bot))
