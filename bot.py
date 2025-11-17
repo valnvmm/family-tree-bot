@@ -25,25 +25,22 @@ bot = commands.Bot(
     help_command=None
 )
 
+# Use your Railway variable: DISCORD_TOKEN
 TOKEN = os.getenv("DISCORD_TOKEN")
 
 # ---------------------------------------------------------
-# Load Cogs
+# Load Cogs (async for discord.py 2.x)
 # ---------------------------------------------------------
-def load_cogs():
+async def load_cogs():
     log("Loading cogs...")
     for filename in os.listdir("./cogs"):
-        if not filename.endswith(".py"):
-            continue
-        if filename == "__init__.py":
-            continue
-
-        name = filename[:-3]
-        try:
-            bot.load_extension(f"cogs.{name}")
-            log(f"  → Loaded cog: {name}")
-        except Exception as e:
-            log(f"  → Failed to load cog {name}: {e}")
+        if filename.endswith(".py") and filename != "__init__.py":
+            name = filename[:-3]
+            try:
+                await bot.load_extension(f"cogs.{name}")
+                log(f"  → Loaded cog: {name}")
+            except Exception as e:
+                log(f"  → Failed to load cog {name}: {e}")
 
 # ---------------------------------------------------------
 # Events
@@ -55,17 +52,14 @@ async def on_ready():
     log(f"Logged in as: {bot.user} (ID: {bot.user.id})")
     log("----------------------------------------")
 
-    # Guilds
     log(f"Guilds loaded: {len(bot.guilds)}")
 
-    # Cogs
     loaded = list(bot.cogs.keys())
     if loaded:
         log(f"Cogs active ({len(loaded)}): " + ", ".join(loaded))
     else:
         log("Warning: No cogs loaded.")
 
-    # Database test
     try:
         from db import get_db
         db = get_db()
@@ -81,7 +75,11 @@ async def on_ready():
 # ---------------------------------------------------------
 if __name__ == "__main__":
     log("Boot sequence initiated...")
-    load_cogs()
-    log("Boot sequence complete. Running bot...")
 
-    bot.run(TOKEN)
+    async def main():
+        await load_cogs()
+        log("Boot sequence complete. Running bot...")
+
+        await bot.start(TOKEN)
+
+    asyncio.run(main())
