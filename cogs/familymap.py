@@ -69,17 +69,20 @@ class FamilyMap(commands.Cog):
             if partner in user_map:
                 dot.edge(str(uid), str(partner), dir="none", color="#00A3FF", penwidth="2.0")
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            output_path = os.path.join(tmpdir, "familymap")
-            dot.render(output_path, cleanup=True)
-            png_path = output_path + ".png"
+        # PURE PYTHON RENDERING — no `dot` needed
+        rendered_bytes = dot.pipe(format="png")
 
-            file = discord.File(png_path, filename="familymap.png")
+        # Save to temp file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+            tmp.write(rendered_bytes)
+            temp_path = tmp.name
 
         await interaction.followup.send(
             content="📜 **Server Family Map** (Zoom in for details!)",
-            file=file
+            file=discord.File(temp_path, filename="familymap.png")
         )
+
+        os.remove(temp_path)
 
 
 async def setup(bot):
