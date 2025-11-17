@@ -1,37 +1,87 @@
-import discord
+import os
+import asyncio
+import datetime
 from discord.ext import commands
-from config import Config
-from db import init_db
+import discord
 
+# ---------------------------------------------------------
+# Logging helper
+# ---------------------------------------------------------
+def log(msg: str):
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{timestamp}] {msg}")
+
+# ---------------------------------------------------------
+# Bot setup
+# ---------------------------------------------------------
 intents = discord.Intents.default()
-intents.guilds = True
 intents.members = True
+intents.guilds = True
 intents.message_content = True
 
-bot = commands.Bot(intents=intents, command_prefix="!", help_command=None)
+bot = commands.Bot(
+    command_prefix="!",
+    intents=intents,
+    help_command=None
+)
 
-@bot.event
-async def setup_hook():
+TOKEN = os.getenv("DISCORD_TOKEN")
 
-    print("🔧 Initializing database...")
-    await init_db()
+# ---------------------------------------------------------
+# Load Cogs
+# ---------------------------------------------------------
+def load_cogs():
+    log("Loading cogs...")
+    for filename in os.listdir("./cogs"):
+        if not filename.endswith(".py"):
+            continue
+        if filename == "__init__.py":
+            continue
 
-    print("🔧 Loading cogs...")
-    await bot.load_extension("cogs.family")
-    await bot.load_extension("cogs.marriage")
-    await bot.load_extension("cogs.adoption")
-    await bot.load_extension("cogs.familymap")
-    await bot.load_extension("cogs.familycluster")
+        name = filename[:-3]
+        try:
+            bot.load_extension(f"cogs.{name}")
+            log(f"  → Loaded cog: {name}")
+        except Exception as e:
+            log(f"  → Failed to load cog {name}: {e}")
 
-    print("🔗 Syncing commands...")
-    await bot.tree.sync()
-
-    print("✔️ Bot setup complete!")
-
-
+# ---------------------------------------------------------
+# Events
+# ---------------------------------------------------------
 @bot.event
 async def on_ready():
-    print(f"🚀 Bot online as {bot.user}")
+    log("----------------------------------------")
+    log("Starting FamilyTreeBot...")
+    log(f"Logged in as: {bot.user} (ID: {bot.user.id})")
+    log("----------------------------------------")
 
+    # Guilds
+    log(f"Guilds loaded: {len(bot.guilds)}")
 
-bot.run(Config.TOKEN)
+    # Cogs
+    loaded = list(bot.cogs.keys())
+    if loaded:
+        log(f"Cogs active ({len(loaded)}): " + ", ".join(loaded))
+    else:
+        log("Warning: No cogs loaded.")
+
+    # Database test
+    try:
+        from db import get_db
+        db = get_db()
+        log("Database connection OK.")
+    except Exception as e:
+        log(f"Database connection FAILED: {e}")
+
+    log("FamilyTreeBot is fully online.")
+    log("----------------------------------------")
+
+# ---------------------------------------------------------
+# Startup
+# ---------------------------------------------------------
+if __name__ == "__main__":
+    log("Boot sequence initiated...")
+    load_cogs()
+    log("Boot sequence complete. Running bot...")
+
+    bot.run(TOKEN)
