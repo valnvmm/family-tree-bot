@@ -1,19 +1,18 @@
-#--- Base image ---
 FROM python:3.11-slim
 
-# --- Install Graphviz system binaries ---
+# Install system dependencies
 RUN apt-get update && \
     apt-get install -y graphviz && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# --- Work directory ---
+# Set workdir
 WORKDIR /app
 
-# --- Copy all project files ---
-COPY . /app
+# Copy ONLY the inner folder contents
+COPY family-tree-bot-main/ /app/
 
-# --- Install Python dependencies ---
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# --- Start bot ---
+# Start the bot
 CMD ["python", "bot.py"]
