@@ -88,7 +88,7 @@ class FamilyMap(commands.Cog):
             file = discord.File(png_path, filename="familymap.png")
 
         await interaction.followup.send(
-            content="📜 **Server Family Map**  
+            content="📜 **Server Family Map**",
 (Zoom in for details!)",
             file=file
         )
