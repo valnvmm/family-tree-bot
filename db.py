@@ -1,32 +1,72 @@
-from asyncpg import create_pool
-from config import Config
+import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
-pool = None
+# ---------------------------------------------------------
+# Database connection
+# ---------------------------------------------------------
 
-async def init_db():
-    global pool
-    print("📦 Connecting to PostgreSQL...")
+def get_db():
+    """
+    Returns a PostgreSQL connection using Railway environment variables.
+    Uses RealDictCursor so rows behave like dicts.
+    Automatically logs errors if connection fails.
+    """
 
-    pool = await create_pool(dsn=Config.DATABASE_URL)
+    db_url = os.getenv("DATABASE_URL")
 
-    async with pool.acquire() as con:
-        print("🔧 Database setup...")
-        await con.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                user_id BIGINT PRIMARY KEY,
-                partner BIGINT,
-                parent1 BIGINT,
-                parent2 BIGINT
-            );
-        """)
+    if not db_url:
+        print("[DB] ERROR: DATABASE_URL environment variable not found.")
+        return None
 
-        await con.execute("""
-            CREATE TABLE IF NOT EXISTS children (
-                parent BIGINT,
-                child BIGINT,
-                PRIMARY KEY(parent, child)
-            );
-        """)
+    try:
+        conn = psycopg2.connect(
+            dbname=os.getenv("PGDATABASE"),
+            user=os.getenv("PGUSER"),
+            password=os.getenv("PGPASSWORD"),
+            host=os.getenv("PGHOST"),
+            port=os.getenv("PGPORT"),
+            cursor_factory=RealDictCursor,
+            sslmode="require"
+        )
+        print("[DB] Connected to PostgreSQL successfully.")
+        return conn
 
-    print("📚 Tables are ready.")
-    print("[DB] Connection to PostgreSQL successful.")
+    except Exception as e:
+        print(f"[DB] Connection FAILED: {e}")
+        return None
+
+
+# ---------------------------------------------------------
+# Utility query function
+# ---------------------------------------------------------
+
+def query(sql, params=None, fetch=False):
+    """
+    Executes a query on the database.
+    `fetch=True` returns rows.
+    """
+
+    conn = get_db()
+    if conn is None:
+        print("[DB] Query aborted because no database connection.")
+        return None
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, params or ())
+
+            if fetch:
+                result = cur.fetchall()
+                conn.commit()
+                return result
+
+            conn.commit()
+            return True
+
+    except Exception as e:
+        print(f"[DB] Query ERROR: {e}")
+        return None
+
+    finally:
+        conn.close()
