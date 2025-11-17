@@ -32,7 +32,9 @@ bot = commands.Bot(
 )
 
 # Use your Railway variable: DISCORD_TOKEN
-TOKEN = os.getenv("DISCORD_TOKEN")
+from config import Config
+TOKEN = Config.TOKEN
+
 
 # ---------------------------------------------------------
 # Load Cogs (async for discord.py 2.x)
