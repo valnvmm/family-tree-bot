@@ -31,6 +31,7 @@ async def setup_hook():
     await bot.load_extension("cogs.familycompare")
     await bot.load_extension("cogs.ancestor")
     await bot.load_extension("cogs.lineage")
+    await bot.load_extension("cogs.logging")
 
     print("🔗 Syncing commands...")
     await bot.tree.sync()
