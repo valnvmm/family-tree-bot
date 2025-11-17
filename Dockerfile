@@ -5,13 +5,16 @@ RUN apt-get update && \
     apt-get install -y graphviz && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
+# Main app folder
 WORKDIR /app
 
-# Copy EVERYTHING in your repo into /app
+# Copy entire GitHub repo into container
 COPY . .
 
-# Install dependencies
+# Enter the real project folder (GitHub always nests it like this)
+WORKDIR /app/family-tree-bot-main
+
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Start the bot
