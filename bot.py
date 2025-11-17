@@ -4,6 +4,12 @@ import datetime
 from discord.ext import commands
 import discord
 
+
+print("🚀 Starting Family Tree Bot...")
+import sys
+print("Python version:", sys.version)
+print("Loaded modules OK")
+
 # ---------------------------------------------------------
 # Logging helper
 # ---------------------------------------------------------
