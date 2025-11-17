@@ -29,3 +29,4 @@ async def init_db():
         """)
 
     print("📚 Tables are ready.")
+    print("[DB] Connection to PostgreSQL successful.")
