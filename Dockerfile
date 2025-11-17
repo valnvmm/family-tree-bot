@@ -1,0 +1,19 @@
+# --- Base image ---
+FROM python:3.11-slim
+
+# --- Install Graphviz system binaries ---
+RUN apt-get update && \
+    apt-get install -y graphviz && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# --- Work directory ---
+WORKDIR /app
+
+# --- Copy all project files ---
+COPY . /app
+
+# --- Install Python dependencies ---
+RUN pip install --no-cache-dir -r requirements.txt
+
+# --- Start bot ---
+CMD ["python", "bot.py"]
